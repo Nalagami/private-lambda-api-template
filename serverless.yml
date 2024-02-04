@@ -1,9 +1,13 @@
 service: private-api-template
 useDotenv: true
 
+custom:
+  stage: ${opt:stage, 'dev'}
+  dynamodbTableName: ${env:DYNAMODB_TABLE_NAME}-${self:custom.stage}
+
 provider:
   name: aws
-  stage: ${opt:stage, 'stg'}
+  stage: ${self:custom.stage}
   region: ap-northeast-1
   runtime: python3.11
   architecture: x86_64
@@ -26,6 +30,8 @@ functions:
   hello:
     name: ${self:service}-handler
     handler: handler/hello.lambda_handler
+    environment:
+      DYNAMODB_TABLE_NAME: ${self:custom.dynamodbTableName}
     timeout: 30
     memorySize: 128
     vpc:
@@ -40,6 +46,8 @@ functions:
       - http:
           path: /hello
           method: post
+
+# TODO: dynamodbへのアクセスロールを作成する
 
 resources:
   Resources:
@@ -72,7 +80,7 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
-        TableName: sampleTable
+        TableName: ${self:custom.dynamodbTableName}
 
 plugins:
   - serverless-python-requirements

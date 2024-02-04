@@ -1,9 +1,9 @@
 import json
 import boto3
+import os
 
 dynamodb = boto3.resource("dynamodb", region_name="ap-northeast-1")
-# TODO: 環境変数から取得するようにする
-table_name = "sampleTable"
+table_name = os.environ.get("DYNAMODB_TABLE_NAME", "")
 table = dynamodb.Table(table_name)
 
 
