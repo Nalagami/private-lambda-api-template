@@ -1,0 +1,78 @@
+service: private-api-template
+useDotenv: true
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'stg'}
+  region: ap-northeast-1
+  runtime: python3.11
+  architecture: x86_64
+  timeout: 30
+  memorySize: 128
+  environment:
+    TZ: Asia/Tokyo
+  apiGateway:
+    resourcePolicy:
+      - Effect: Allow
+        Principal: "*"
+        Action: execute-api:Invoke
+        Resource:
+          - execute-api:/*
+  endpointType: PRIVATE
+  vpcEndpointIds:
+    - ${env:VPC_ENDPOINT_ID}
+
+functions:
+  hello:
+    name: ${self:service}-handler
+    handler: handler/hello.lambda_handler
+    timeout: 30
+    memorySize: 128
+    vpc:
+      securityGroupIds:
+        - !Ref "LambdaSecurityGroup"
+      subnetIds:
+        - ${env:SUBNET_ID}
+    events:
+      - http:
+          path: /hello
+          method: get
+      - http:
+          path: /hello
+          method: post
+
+resources:
+  Resources:
+    # セキュリティグループグループの設定を見直す
+    LambdaSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Private Lambda Security Group
+        VpcId: ${env:VPC_ID}
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            ToPort: 443
+            FromPort: 443
+            SourceSecurityGroupId: ${env:SOURCE_SECURITY_GROUP}
+        SecurityGroupEgress:
+          - CidrIp: 0.0.0.0/0
+            IpProtocol: -1
+        Tags:
+          - Key: "Name"
+            Value: "LambdaSecurityGroup"
+    myDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: UserID
+            AttributeType: S
+        KeySchema:
+          - AttributeName: UserID
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        TableName: sampleTable
+
+plugins:
+  - serverless-python-requirements
